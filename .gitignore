@@ -1,0 +1,5 @@
+/bin
+/obj
+*.bak
+/discord_key.json
+/.vs

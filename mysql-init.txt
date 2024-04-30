@@ -1,0 +1,10 @@
+Mysql -uroot -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'sinterklaas';"
+Create Database IMDB;
+
+mysql> use db_name;
+mysql> source backup-file.sql;
+
+Is de write/read speed goed is System informer / Proces hacker. IO write speed en
+Hoeveel write speed gebruikt ie
+en hoeveel gebruikt docker
+en hoeveel optimaal
