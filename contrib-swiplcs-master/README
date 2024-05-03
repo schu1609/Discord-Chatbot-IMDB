@@ -1,0 +1,90 @@
+WHAT'S NEW
+==========
+ 
+ - SwiPICs updated to support SWI-Prolog Version 8.0.3-1 32bit and 64bit
+
+------------------------------------------------------------------------------
+
+			An interface from .Net languages to SWI-Prolog
+
+This library is a .Net (CSharp) interface to SWI-Prolog. The described  
+interface provides a layer around the C-interface for natural programming from C#. 
+The interface deals with automatic type-conversion to and from Prolog, mapping of
+exceptions and making queries to Prolog in an easy way. There is a call-back from 
+Prolog to C#. 
+
+AUTHOR
+======
+		
+		Uwe Lesta
+		SBS-Softwaresysteme GmbH
+		Jasperalleee 13
+		D -38102 Braunschweig 
+
+		E-mail:  Lesta@sbs-softwaresysteme.de 
+
+		With contributions from:
+		- Arne Skjærholt    first 64-Bit version
+		- Batu Akan         Linux support with Mono
+		- Foutelet Joel     F# sample
+		- Robert Czerny     Bug reports
+		- others
+
+WEB-HOME
+========
+
+		The documantation is at
+		http://www.lesta.de/prolog/swiplcs/Generated/Index.aspx
+
+		The binaries are available at 
+		http://www.lesta.de/prolog/swiplcs/download/index.htm
+------------------------------------------------------------------------------
+
+If you want to compile SwiplCs only the project SwiPlCs is needed.
+
+To work with Visual Studio install 'Visual Studio Tools for Git' 
+in the Tools - 'Extensions and Updates' menu and connect to 
+https://github.com/SWI-Prolog/contrib-swiplcs
+
+Add the following lines to .git\info\exlude if you like to commit something
+	*.sdf
+	*.opensdf
+
+SWI_HOME_DIR has to be set as an environment variable to the SWI-Prolog installation Path.
+
+PATH the bin directory of SWI-Prolog has to be added to the PATH environment variable.
+
+
+Compiler switches
+-----------------
+
+The following compiler switches are in the sources:
+
+- _PL_X64        Maintained by the project files (.csproj). If defined a 64-bit version 
+                 is compiled
+- _LINUX         Not maintained!
+- _DEBUG         in SWI-cs-PlQuery.cs. Write an Exception to the Console / trace window. 
+                 The release version throw the Exception.
+- USE_PRINT_MESSAGE debugging purpose in exceptions.cs
+
+
+Build binaries
+--------------
+To Build the binaries the batch script build_bin_package.bat in the project SwiPlCs-Documentation can be used.
+Therefor  winrar must be installed at c:\programme\winrar\winrar and the Sandcastle Help File Builder (shfb) must be installed.
+
+
+64-Bit
+------
+To run the test on a 64-Bit environment got to the Test menu 
+- 'Test settings' - 'Default Processor Architecture' - chose X64
+
+
+
+Known BUGs
+----------
+
+64-Bit:
+
+- test cases for Prolog call back with war args (t_varargs_single, t_varargs) are *not* running
+  see remarks on DelegateParameterVarArgs in SWI-cs.cs

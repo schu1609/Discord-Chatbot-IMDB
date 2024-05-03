@@ -1,0 +1,75 @@
+#escape =`
+              
+FROM mcr.microsoft.com/windows/servercore:ltsc2019-amd64 AS final
+WORKDIR /app
+COPY . .
+WORKDIR /app/chatbot
+
+Run powershell -command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        expand-archive -Path 'ExportIMDB.zip' `
+        && powershell -command expand-archive -Path 'swipl.zip'; `
+        && setx /m PATH "%PATH%;C:\app\swipl\bin"; `
+        && del swipl.zip
+
+# Install ASP.NET Core 3.1
+RUN powershell -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; `
+        Invoke-WebRequest `
+            -UseBasicParsing `
+            -Uri https://dot.net/v1/dotnet-install.ps1 `
+            -OutFile dotnet-install.ps1;
+
+Run powershell -executionpolicy bypass -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; `
+        ./dotnet-install.ps1 `
+            -InstallDir '/Program Files/dotnet' `
+            -Channel 3.1
+
+Run powershell -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; `
+        Remove-Item -Force dotnet-install.ps1 `
+        && setx /M PATH "%PATH%;C:\Program Files\dotnet"
+
+WORKDIR /app/contrib-swiplcs-master/SwiPlCs
+RUN dotnet restore "SwiPLcs.csproj"
+WORKDIR /app/chatbot
+RUN dotnet restore "Chatbot.csproj"
+RUN dotnet publish "Chatbot.csproj" -c Release -o c:/app/chatbot
+#-o /app/chatbot
+ENTRYPOINT ["cmd","/s","/c","cd","chatbot","&&","dotnet","Chatbot.dll"]
+
+RUN xcopy /I /E /Y my.ini "..\tools\mysql\current\"
+#RUN powershell -Command `
+        #$ErrorActionPreference = 'Stop'; `
+        #$ProgressPreference = 'SilentlyContinue'; `
+        #Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
+#
+#RUN powershell -Command `
+        #$ErrorActionPreference = 'Stop'; `
+        #$ProgressPreference = 'SilentlyContinue'; `
+        #"#(nop)" ENV chocolateyUseWindowsCompression=false
+#
+#RUN powershell -Command `
+        #$ErrorActionPreference = 'Stop'; `
+        #$ProgressPreference = 'SilentlyContinue'; `
+        #[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; `
+        #iex ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1')); `
+        #choco feature disable --name showDownloadProgress; choco install -y mysql --version=8.0.17; `
+        #&& "c:\tools\mysql\current\bin\mysql.exe" -uroot -e "Create Database imdb; ALTER USER 'root'@'localhost' IDENTIFIED BY 'sinterklaas'; use imdb; source c:/app/chatbot/exportimdb/imdb_discord_accounts.sql;"; `
+        #&& powershell -command sleep 30
+        
+#Run powershell -command sleep 40 && mysql -uroot -psinterklaas -e "use imdb; source c:/app/chatbot/exportimdb/imdb_title_basic.sql;" && powershell -command sleep 90
+#Run powershell -Command sleep 40 && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; source c:/app/chatbot/exportimdb/imdb_name_basic.sql; source c:/app/chatbot/exportimdb/imdb_title_genre.sql; source c:/app/chatbot/exportimdb/imdb_title_crew.sql; source c:/app/chatbot/exportimdb/imdb_name_profession.sql;"
+#Run powershell -Command sleep 40 && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; source c:/app/chatbot/exportimdb/imdb_title_principals.sql;"
+#Run powershell -Command sleep 40 && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; source c:/app/chatbot/exportimdb/imdb_name_title_bridge.sql; source c:/app/chatbot/exportimdb/imdb_title_akas.sql; source c:/app/chatbot/exportimdb/imdb_title_ratings.sql; source c:/app/chatbot/exportimdb/imdb_title_episodes.sql;"
+#Run del exportimdb /f /q
+
+

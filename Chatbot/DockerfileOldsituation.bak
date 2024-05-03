@@ -1,0 +1,163 @@
+#escape =`
+#See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
+
+#Depending on the operating system of the host machines(s) that will build or run the containers, the image specified in the FROM statement may need to be changed.
+#For more information, please see https://aka.ms/containercompat
+#RUN powershell -Command [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; $ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -UseBasicParsing -Uri https://dot.net/v1/dotnet-install.ps1 -OutFile dotnet-install.ps1; ./dotnet-install.ps1 -InstallDir '/Program Files/dotnet' -Channel 3.1 -Runtime dotnet; Remove-Item -Force dotnet-install.ps1 && setx /M PATH "%PATH%;C:\Program Files\dotnet"
+#COPY . .
+
+#FROM mcr.microsoft.com/windows:ltsc2019-amd64 AS base
+FROM mcr.microsoft.com/windows/servercore:ltsc2019-amd64 AS base
+
+#SHELL ["cmd", "/S", "/C"]
+# Install ASP.NET Core 3.1
+RUN powershell -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; `
+        Invoke-WebRequest `
+            -UseBasicParsing `
+            -Uri https://dot.net/v1/dotnet-install.ps1 `
+            -OutFile dotnet-install.ps1;
+
+Run powershell -executionpolicy bypass -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; `
+        ./dotnet-install.ps1 `
+            -InstallDir '/Program Files/dotnet' `
+            -Channel 3.1 `
+            -Runtime aspnetcore;
+
+Run powershell -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; `
+        Remove-Item -Force dotnet-install.ps1 `
+        && setx /M PATH "%PATH%;C:\Program Files\dotnet"
+#Run setx /M PATH "%PATH%;C:\Program Files\dotnet"
+#SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';", "$ProgressPreference = 'SilentlyContinue';"]
+
+WORKDIR /app
+
+#EXPOSE 80
+#EXPOSE 8001
+
+FROM mcr.microsoft.com/windows/servercore:ltsc2019-amd64 AS build
+# Install .NET Core 3.1 SDK
+RUN powershell -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; `
+        Invoke-WebRequest `
+            -UseBasicParsing `
+            -Uri https://dot.net/v1/dotnet-install.ps1 `
+            -OutFile dotnet-install.ps1;
+
+Run powershell -executionpolicy bypass -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; `
+        ./dotnet-install.ps1 `
+            -InstallDir '/Program Files/dotnet' `
+            -Channel 3.1;
+
+Run powershell -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; `
+        Remove-Item -Force dotnet-install.ps1 `
+        && setx /M PATH "%PATH%;C:\Program Files\dotnet"
+
+WORKDIR /src
+COPY . .
+WORKDIR /src/contrib-swiplcs-master/SwiPlCs
+RUN dotnet restore "SwiPLcs.csproj"
+WORKDIR /src/chatbot
+
+Run powershell -command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        xcopy Alice.pl ..\..\app\publish\ /E /I && xcopy Imdb.zip ..\..\app\publish\ /E /I 
+
+#Run xcopy Alice.pl ..\..\app\publish\ /E /I
+#Run xcopy imdb.zip ..\..\app\publish\ /E /I
+        
+RUN powershell -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        expand-archive -Path 'swipl.zip' -DestinationPath "../../app/publish"; `
+		&& setx /m PATH "%PATH%;C:\app\swipl\bin"; `
+        && del swipl.zip
+		
+#COPY ["./chatbot/Chatbot.csproj", "."]
+RUN dotnet restore "Chatbot.csproj"
+
+RUN dotnet build "Chatbot.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "Chatbot.csproj" -c Release -o /app/publish
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "Chatbot.dll"]
+
+RUN setx /m PATH "%PATH%;C:\app\swipl\bin"
+
+Run del ExportIMDB.zip
+RUN xcopy /I /E /Y my.ini "..\tools\mysql\current\"
+
+RUN powershell -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
+
+RUN powershell -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        "#(nop)" ENV chocolateyUseWindowsCompression=false
+
+RUN powershell -Command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; `
+        iex ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1')); `
+        choco feature disable --name showDownloadProgress; choco install -y mysql --version=8.0.17; `
+        && "c:\tools\mysql\current\bin\mysql.exe" -uroot -e "Create Database imdb; ALTER USER 'root'@'localhost' IDENTIFIED BY 'sinterklaas'; "; `
+        && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; CREATE TABLE discord_accounts (aId int NOT NULL AUTO_INCREMENT, discordId bigint unsigned NOT NULL, username varchar(40) NOT NULL, favoriteGenre varchar(45) DEFAULT NULL, speakDutch bit(1) DEFAULT NULL, favoriteMovie varchar(45) DEFAULT NULL, PRIMARY KEY (`aId`));" `
+        && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; CREATE TABLE name_basic (nconst varchar(20) NOT NULL, fullName varchar(40) DEFAULT NULL, birthYear int DEFAULT NULL, deathYear int DEFAULT NULL, knownfortitles varchar(120) DEFAULT NULL, PRIMARY KEY (nconst), KEY Name (fullName));" `
+        && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; CREATE TABLE title_basic (tconst varchar(20) NOT NULL, titleType varchar(45) DEFAULT NULL, primaryTitle varchar(45) DEFAULT NULL, originalTitle varchar(45) DEFAULT NULL, isAdult tinyint(1) DEFAULT NULL, startYear int DEFAULT NULL, endYear int DEFAULT NULL, runtimeMinutes int DEFAULT NULL, genre varchar(100) DEFAULT NULL, PRIMARY KEY (tconst), KEY Name_idx (primaryTitle));" `
+        && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; CREATE TABLE title_akas (  titleid varchar(25) NOT NULL, ordering int DEFAULT NULL, title varchar(200) DEFAULT NULL, region varchar(10) DEFAULT NULL, language varchar(45) DEFAULT NULL, types varchar(200) DEFAULT NULL, attributes varchar(200) DEFAULT NULL,  isOriginalTitle tinyint DEFAULT NULL, KEY akas_tconst_idx (titleid), CONSTRAINT akas_tconst FOREIGN KEY (titleid) REFERENCES title_basic (tconst));" `
+        && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; CREATE TABLE name_title_bridge ( nconst varchar(20) NOT NULL, tconst varchar(20) NOT NULL, KEY tconst_idx (tconst), KEY nconst_idx (nconst), CONSTRAINT nconst_fk FOREIGN KEY (nconst) REFERENCES name_basic (nconst), CONSTRAINT tconst_fkb FOREIGN KEY (tconst) REFERENCES title_basic (tconst));" `
+        && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; CREATE TABLE title_crew ( tconst varchar(20) NOT NULL, role char(1) NOT NULL, nconst varchar(20) NOT NULL, KEY tconst_idx (tconst) /*!80000 INVISIBLE */, KEY nconst_crew_idx (nconst), CONSTRAINT nconst_crew FOREIGN KEY (nconst) REFERENCES name_basic (nconst), CONSTRAINT tconst_crew FOREIGN KEY (tconst) REFERENCES title_basic (tconst));" `
+        && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; CREATE TABLE title_episodes ( tconst varchar(20) NOT NULL, parenttsconst varchar(20) NOT NULL, seasonnumber int DEFAULT NULL, episodenumber int DEFAULT NULL, PRIMARY KEY (tconst), KEY parent_const_idx (parenttsconst), CONSTRAINT episodes_tconst FOREIGN KEY (tconst) REFERENCES title_basic (tconst), CONSTRAINT parent_tconst FOREIGN KEY (parenttsconst) REFERENCES title_basic (tconst));" `
+        && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; CREATE TABLE title_genre ( tconst varchar(20) NOT NULL, genre varchar(45) NOT NULL, KEY tconst_fkg_idx (tconst), CONSTRAINT tconst_fkg FOREIGN KEY (tconst) REFERENCES title_basic (tconst));" `
+        && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; CREATE TABLE title_principals ( tconst varchar(20) NOT NULL, ordering int DEFAULT NULL, nconst varchar(20) DEFAULT NULL, category varchar(20) DEFAULT NULL, job varchar(20) DEFAULT NULL, characters varchar(100) DEFAULT NULL, KEY nconst_idx (nconst), KEY tconst (tconst), CONSTRAINT nconst FOREIGN KEY (nconst) REFERENCES name_basic (nconst), CONSTRAINT tconst FOREIGN KEY (tconst) REFERENCES title_basic (tconst));" `
+        && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; CREATE TABLE title_ratings ( tconst varchar(20) NOT NULL, averageRating float DEFAULT NULL, numVotes int DEFAULT NULL, KEY rating_tconst_idx (tconst), CONSTRAINT rating_tconst FOREIGN KEY (tconst) REFERENCES title_basic (tconst));" `
+        && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; CREATE TABLE name_profession ( nconst varchar(20) NOT NULL, profession varchar(45) NOT NULL, KEY nconst_idx (nconst), CONSTRAINT nconst_fkp FOREIGN KEY (nconst) REFERENCES name_basic (nconst));" `
+        && powershell -command sleep 30
+
+
+#use imdb; source c:/app/imdb_discord_accounts.sql; 
+run powershell -command `
+        $ErrorActionPreference = 'Stop'; `
+        $ProgressPreference = 'SilentlyContinue'; `
+        sleep 35; `
+        && net stop MySQL `
+        && powershell -command expand-archive -Path 'imdb.zip' -DestinationPath "C:\ProgramData\MySQL\data" -force; `
+        && del imdb.zip `
+        && net start Mysql `
+        && powershell -command sleep 30
+
+
+#WORKDIR /tools/mysql/current/bin
+#run powershell -command sleep 40 && mysql -uroot -psinterklaas -e "use imdb; source c:/app/imdb_title_basic.sql; source c:/app/imdb_title_basic.sql;" && powershell -command sleep 90
+#Run powershell -Command sleep 40 && "c:\tools\mysql\current\bin\mysql.exe" -uroot -psinterklaas -e "use imdb; source c:/app/imdb_name_basic.sql; source c:/app/imdb_title_ratings.sql; source c:/app/imdb_title_genre.sql; source c:/app/imdb_title_crew.sql; source c:/app/imdb_name_profession.sql;"
+
+#run powershell -command sleep 40 && mysql -uroot -psinterklaas -e "use imdb; source imdb.sql;"
+#run mysql -uroot -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'sinterklaas';"
+#run mysql -uroot -psinterklaas imdb < imdb.sql
+#WORKDIR /app
+#FROM build AS publish
+#RUN dotnet publish "Chatbot.csproj" -c Release -o /app/publish /p:UseAp            pHost=false

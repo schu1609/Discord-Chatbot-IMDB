@@ -1,0 +1,20 @@
+﻿
+- 64-Bit Unit test t_varargs_single 
+
+- Tests commentieren, resharpen, sotrtieren, aufrüumen
+
+- Code coverage durcharbeiten und tests ergänzen / refactorn 
+
+
+
+
+	
+PlConNet:
+
+fern ziel echtes stream marshalling
+
+-----------------------------------------------
+
+25.03.09 - PlQuery free private machen
+	- PlQuery auch mit arity == 0 e.g. listing.
+	- in der solution loop debugging facileties und <return> , ';' usw.

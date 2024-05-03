@@ -1,5 +1,8 @@
-/bin
-/obj
-*.bak
-/discord_key.json
-/.vs
+/Chatbot/bin
+/Chatbot/obj/
+/.vs/Chatbot/
+/contrib-swiplcs-master/SwiPlCs.backup/obj/
+/contrib-swiplcs-master/SwiPlCs.backup/bin
+/contrib-swiplcs-master/SwiPlCs/bin/
+/contrib-swiplcs-master/SwiPlCs/obj
+/Chatbot/discord_key.json

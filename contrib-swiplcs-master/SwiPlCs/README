@@ -1,0 +1,11 @@
+﻿
+
+On Code Analyses you get: CA5122    P/Invoke declarations should not be safe-critical.    P/Invoke method '....
+
+see: "Bogus CA5122 warning about P/Invoke declarations should not be safe-critical"
+at  http://connect.microsoft.com/VisualStudio/feedback/details/729254/bogus-ca5122-warning-about-p-invoke-declarations-should-not-be-safe-critical
+
+The same for CA2204 
+see "CA2204 : Correct the spelling of the unrecognized token... even for tokens in dictionary"
+at http://connect.microsoft.com/VisualStudio/feedback/details/521030/ca2204-correct-the-spelling-of-the-unrecognized-token-even-for-tokens-in-dictionary
+
