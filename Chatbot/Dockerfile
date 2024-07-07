@@ -1,10 +1,4 @@
 #escape =`
-#See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
-
-#Depending on the operating system of the host machines(s) that will build or run the containers, the image specified in the FROM statement may need to be changed.
-#For more information, please see https://aka.ms/containercompat
-#RUN powershell -Command [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; $ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -UseBasicParsing -Uri https://dot.net/v1/dotnet-install.ps1 -OutFile dotnet-install.ps1; ./dotnet-install.ps1 -InstallDir '/Program Files/dotnet' -Channel 3.1 -Runtime dotnet; Remove-Item -Force dotnet-install.ps1 && setx /M PATH "%PATH%;C:\Program Files\dotnet"
-#COPY . .
 
 #FROM mcr.microsoft.com/windows:ltsc2019-amd64 AS base
 FROM mcr.microsoft.com/windows/servercore:ltsc2019-amd64 AS base

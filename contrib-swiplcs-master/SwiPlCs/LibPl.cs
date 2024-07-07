@@ -75,18 +75,21 @@ namespace SbsSW.SwiPlCs
         internal const int PL_ENGINE_INVAL = 2;			// engine doesn'termRef exist
         internal const int PL_ENGINE_INUSE = 3;			// engine is in use 
 
-// ReSharper restore UnusedMember.Local
-// ReSharper restore InconsistentNaming
+        static internal Delegate _readfunction;
+        static internal Delegate _writefunction;
+
+        // ReSharper restore UnusedMember.Local
+        // ReSharper restore InconsistentNaming
 
 
-		/////////////////////////////
-		/// libpl
-		///
+        /////////////////////////////
+        /// libpl
+        ///
 
-		#region helper for initialize and cleanUp halt
+        #region helper for initialize and cleanUp halt
 
-		// Unmanaged resource. CLR will ensure SafeHandles get freed, without requiring a finalizer on this class.
-		static SafeLibraryHandle _hLibrary;
+        // Unmanaged resource. CLR will ensure SafeHandles get freed, without requiring a finalizer on this class.
+        static SafeLibraryHandle _hLibrary;
 
 
 		private static bool IsValid
@@ -144,6 +147,14 @@ namespace SbsSW.SwiPlCs
 
         internal static void SetStreamFunction(Streams.PlStreamType streamType, StreamsFunction functionType, Delegate function)
         {
+            if (functionType == StreamsFunction.Read)
+            {
+                _readfunction = function;
+            }
+            else
+            {
+                _writefunction = function;
+            }
             // to calculate to following values use the C++ Project CalcStreamSize
 #if _PL_X64
 #warning _PL_X64 is defined

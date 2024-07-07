@@ -1,86 +1,79 @@
  use_module(library(readutil)).
  use_module(library(odbc)).
-%=====================================================================
-% Filename:    alice.pl
-% Author:      Diego Molla
-% Date:        14/08/02
-% Version:     1.0
-%
-% Purpose:
-% This file contains a Prolog implementation of the ALICE chatterbot.
-% The top predicate is loop/0, and examples of category definitions
-% are:
-%
+
+%error message
 em(X) :- write("something went wrong"), X = "". %error message
-dbc :- odbc_connect('imdb', _,[user(leons), password(sinterklaas), alias(imdb), open(once)]).
+
+dbc :- odbc_connect('imdb', _,[user(discorduser), password('sinterklaas'), alias(imdb), open(once)]).
 %dbc2 :- odbc_connect('imdb', _,[user(root), password(sinterklaas), alias(imdb), open(once)]).
-%dbc :- format(atom(S), 'driver=MySQL;db=~w;uid=~w;pwd=~w;port=~w;server=~w', ["imdb","leons","sinterklaas","28065","192.168.2.15"]),
+%dbc :- format(atom(S), 'driver=MySQL;db=~w;uid=~w;pwd=~w;port=~w;server=~w', ["imdb","leons","sinterklaas","3306","88.159.224.251"]),
     %odbc_driver_connect(S, dbcconnect, [encoding(utf8)]).
 
+%odbc  SQL queries
+%=====================================================================
 checkdiscordid(W, X) :- odbc_query('imdb', 'SELECT discordId FROM Discord_accounts where discordId=~w' -[W], row(X)).
-addnewuser(W,Y,Z) :- odbc_query('imdb', 'INSERT INTO discord_accounts (discordId, username) VALUES (~w, "~w")' -[W,Y], row(W,Y)).
+addnewuser(W,Y,Z) :- odbc_query('imdb', 'INSERT INTO imdb.discord_accounts (discordId, username) VALUES (~w, "~w")' -[W,Y], row(W,Y)).
 updateuser(X,Y,Z) :- odbc_query('imdb', 'UPDATE imdb.discord_accounts SET username = "~w" WHERE discordId = ~w' -[X,Y], row(X)). 
 updategenre(X,Y,Z) :- odbc_query('imdb', 'UPDATE imdb.discord_accounts SET favoriteGenre = "~w" WHERE discordId = ~w' -[X,Y], row(X)).
 updatemovie(X,Y,Z) :- odbc_query('imdb', 'UPDATE imdb.discord_accounts SET favoriteMovie = "~w" WHERE discordId = ~w' -[X,Y], row(X)).
 updatelanguage(X,Y) :- odbc_query('imdb', 'UPDATE imdb.discord_accounts SET speakDutch = 0 WHERE discordId = ~w' -[X], row(X)).
-%query1(X) :- odbc_query('imdb','select fullName, birthyear from name_basic where fullName="Fred Astaire"', X, [ types([string,integer])]).
 persfavorietefilm(W, Y, X) :- odbc_query('imdb', 'SELECT discordId FROM Discord_accounts where favoriteMovie="~w" and discordId = ~w' -[W], row(X)).
 persfavorietegenre(W, Y, X) :- odbc_query('imdb', 'SELECT discordId FROM Discord_accounts where favoriteGenre="~w"and discordId = ~w' -[W], row(X)).
 persaanbevelingen(W, X).
-acteur(Lemma, X) :- odbc_query('imdb', 'select birthyear from name_basic where fullName="~w"' -[Lemma], row(X)).
-langstefilm(X,Y) :- odbc_query('imdb', 'select primaryTitle, startYear from title_basic where titleType="movie" order by runtimeMinutes desc limit 1', row(X,Y)).
+acteur(Lemma, X) :- odbc_query('imdb', 'select birthyear from imdb.name_basic where fullName="~w"' -[Lemma], row(X)).
+langstefilm(X,Y) :- odbc_query('imdb', 'select primaryTitle, startYear from imdb.title_basic where titleType="movie" order by runtimeMinutes desc limit 1', row(X,Y)).
 filmsspeelde(W,X) :- findall(Y, odbc_query('imdb','SELECT primaryTitle FROM title_basic, title_principals where title_basic.tconst=title_principals.tconst and
- (category="actor" or category="self") and titleType="movie" and nconst=(select nconst from name_basic where fullName="~w" limit 1)' -[W], row(Y)), X).
+ (category="actor" or category="self") and titleType="movie" and nconst=(select nconst from imdb.name_basic where fullName="~w" limit 1)' -[W], row(Y)), X).
 waardering(W,X) :- odbc_query('imdb', 'SELECT primaryTitle FROM imdb.title_basic where titleType="movie" and runtimeMinutes is not null and tconst in
-(select tconst from title_ratings where averageRating between "~w" and 10) order by runtimeMinutes asc limit 1' -[W], row(X)).
-hoogstescore(W,X) :- odbc_query('imdb', 'select primaryTitle from title_basic where tconst=(SELECT tconst FROM imdb.title_ratings order by averageRating desc, numVotes asc limit 1)',
+(select tconst from imdb.title_ratings where averageRating between "~w" and 10) order by runtimeMinutes asc limit 1' -[W], row(X)).
+hoogstescore(W,X) :- odbc_query('imdb', 'select primaryTitle from imdb.title_basic where tconst=(SELECT tconst FROM imdb.title_ratings order by averageRating desc, numVotes asc limit 1)',
  row(X)).
-directoreigenfilms(W,X) :- odbc_query('imdb', 'SELECT count(primaryTitle) from title_basic, title_crew where title_basic.tconst=title_crew.tconst 
-and role="D" and nconst=(select nconst from name_basic where fullName="~w" limit 1)' -[W], row(X)).
-bekenstegenre(X, Y) :- odbc_query('imdb', 'SELECT genre, count(genre) as genres FROM title_genre group by genre order by genres desc limit 1', row(X,Y)).
-filmsgemaakt(W,X) :- odbc_query('imdb', 'select count(tb.tconst) as movies from title_basic as tb, title_crew as tc where tb.tconst=tc.tconst
- and role="D" and titleType="movie" and nconst=(select nconst from name_basic where fullName="~w" limit 1);' -[W], row(X)).
-acteurinfilmnaam(W,X) :- findall(Y, odbc_query('imdb','SELECT primaryTitle FROM title_basic as tb, title_principals as tp where titleType="movie" 
+directoreigenfilms(W,X) :- odbc_query('imdb', 'SELECT count(primaryTitle) from imdb.title_basic, title_crew where title_basic.tconst=title_crew.tconst 
+and role="D" and nconst=(select nconst from imdb.name_basic where fullName="~w" limit 1)' -[W], row(X)).
+bekenstegenre(X, Y) :- odbc_query('imdb', 'SELECT genre, count(genre) as genres FROM imdb.title_genre group by genre order by genres desc limit 1', row(X,Y)).
+filmsgemaakt(W,X) :- odbc_query('imdb', 'select count(tb.tconst) as movies from imdb.title_basic as tb, imdb.title_crew as tc where tb.tconst=tc.tconst
+ and role="D" and titleType="movie" and nconst=(select nconst from imdb.name_basic where fullName like "%~w%" limit 1);' -[W], row(X)).
+acteurinfilmnaam(W,X) :- findall(Y, odbc_query('imdb','SELECT primaryTitle FROM imdb.title_basic as tb, imdb.title_principals as tp where titleType="movie" 
 and (tp.category="actor" or tp.category="actress") 
 and tb.tconst=tp.tconst and primaryTitle like "%~w%" 
-and tp.nconst in (select nconst from name_basic where fullName like "~w %")
+and tp.nconst in (select nconst from imdb.name_basic where fullName like "~w %")
 and startYear between 2010 and 2021' -[W], row(Y)), X).
-regisseurmetacteur(W,X) :- odbc_query('imdb', 'SELECT fullName FROM name_basic, title_principals where category=\'director\' and name_basic.nconst=title_principals.nconst 
-and tconst in (select tconst from title_principals where (category="self" or category="actor") and
- nconst=(select nconst from name_basic where fullName="~w" limit 1)) 
+regisseurmetacteur(W,X) :- odbc_query('imdb', 'SELECT fullName FROM imdb.name_basic, imdb.title_principals where category=\'director\' and name_basic.nconst=title_principals.nconst 
+and tconst in (select tconst from imdb.title_principals where (category="self" or category="actor") and
+ nconst=(select nconst from imdb.name_basic where fullName="~w" limit 1)) 
  group by fullName order by count(fullName) desc' -[W], row(X)).
-woordvaakstfilmen(W,X) :- odbc_query('imdb', 'SELECT count(tconst) as movies, startYear FROM title_basic where startYear between 1990 and 2021 and
+woordvaakstfilmen(W,X) :- odbc_query('imdb', 'SELECT count(tconst) as movies, startYear FROM imdb.title_basic where startYear between 1990 and 2021 and
  primaryTitle like "%~w%" and titleType="movie" group by startYear order by movies desc limit 1' -[W], row(Y,X)).
 slechtstefilm(W,X) :- odbc_query('imdb', 
-"SELECT fullName as movies FROM name_basic as nb, title_principals as tp where nb.nconst=tp.nconst and (category='actor' or category='actress')
- and tconst in (select tconst from title_ratings where averageRating between 1 and 3) group by fullName order by count(fullname) desc limit 1",
+"SELECT fullName as movies FROM imdb.name_basic as nb, imdb.title_principals as tp where nb.nconst=tp.nconst and (category='actor' or category='actress')
+ and tconst in (select tconst from imdb.title_ratings where averageRating between 1 and 3) group by fullName order by count(fullname) desc limit 1",
  row(X)).
 speeltnietregiseerd(W,X) :- odbc_query('imdb', 'SELECT count(nconst) as movies FROM imdb.title_principals where 
 (category="actor" or category="actress" or category="self") 
- and nconst=(select nconst from name_basic where fullName="~w" limit 1) and
- not nconst in (select nconst from title_crew where role="D")' -[W], row(X)).
+ and nconst=(select nconst from imdb.name_basic where fullName="~w" limit 1) and
+ not nconst in (select nconst from imdb.title_crew where role="D")' -[W], row(X)).
 personenmeerfunctie(W,X) :- findall(Y, odbc_query('imdb','SELECT distinct fullName
- from name_basic, title_crew where name_basic.nconst=title_crew.nconst
- and name_basic.nconst in (select nconst from title_principals where category="actor") limit 10', row(Y)),X).
+ from imdb.name_basic, title_crew where name_basic.nconst=title_crew.nconst
+ and name_basic.nconst in (select nconst from imdb.title_principals where category="actor") limit 10', row(Y)),X).
 dubbelrollen(W,X) :- odbc_query('imdb', "SELECT fullName
-from name_basic as nb, title_principals as tp
+from imdb.name_basic as nb, title_principals as tp
 where nb.nconst=tp.nconst and (category=\"actor\" or category=\"actress\")
 order by (length(characters) - length(REPLACE(characters, ',', ''))+1 ) desc 
 limit 1" -[W], row(X)).
 % deze moet nog bekeken worden
-schrijverseigenfilms(W,X) :- findall(Y, odbc_query('imdb', 'SELECT distinct name_basic.nconst, tconst, fullName from name_basic, title_crew
+schrijverseigenfilms(W,X) :- findall(Y, odbc_query('imdb', 'SELECT distinct name_basic.nconst, tconst, fullName from imdb.name_basic, title_crew
  where name_basic.nconst=title_crew.nconst and role=\'W\'
- and name_basic.nconst in (select nconst from title_principals where category=\'actor\')  limit 10', row(Y)),X). %ditgebruiken?
+ and name_basic.nconst in (select nconst from imdb.title_principals where category=\'actor\')  limit 10', row(Y)),X). %ditgebruiken?
 meerdereland(W,X) :- findall([Y,Z], odbc_query('imdb','select primaryTitle, max(ordering) as countries  
-from title_basic, title_akas where titleType=\'movie\' and 
+from imdb.title_basic, title_akas where titleType=\'movie\' and 
   title_basic.tconst=titleid group by titleid order by countries desc limit 10', row(Y,Z)),X). %misschien overzetten
+% filmsspeelde(W,X) :- odbc_query('imdb', 'SELECT primaryTitle FROM imdb.title_basic, title_principals where title_basic.tconst=title_principals.tconst and
+% (category="actor" or category="self") and titleType="movie" and nconst=(select nconst from imdb.name_basic where fullName="~w" limit 1)' -[W], row(X)).
+%=====================================================================
 
-% filmsspeelde(W,X) :- odbc_query('imdb', 'SELECT primaryTitle FROM title_basic, title_principals where title_basic.tconst=title_principals.tconst and
-% (category="actor" or category="self") and titleType="movie" and nconst=(select nconst from name_basic where fullName="~w" limit 1)' -[W], row(X)).
-% odbc_query(test,'create table ~w (testval ~w)'-[test, Type])
+%Bot questions
 
-%checkdiscordid(A,X) ,think(atom_number(A,T))
-%think(atomics_to_string(B,'',T))
+%=====================================================================
 	category([
  	   pattern([startcommand, star(A)]),
 	   template([think(dbc),think(atomics_to_string(A,'',I)),think(checkdiscordid(I, X) -> write(X) ; em(X))])
@@ -117,16 +110,16 @@ from title_basic, title_akas where titleType=\'movie\' and
 	  ]).  
 	category([
 		pattern([hello]),
-		template(['Hi', 'Mister', user])
+		template(['Hi', 'Mister', 1eons])
 		]).
  category([
         pattern([star(I),"I",speak,"English", star(A)]),
-		template([think(dbc),think(updatelanguage(A,X) -> format("Language has been updated.",[X]) ; em(X))])
+		template([think(dbc),think(updatelanguage(A,X) -> format("Your language has been set to English.",[X]) ; em(X))])
 	]).
 	 category([
         pattern([star(I),"I",speak,"Dutch", star(A)]),
 		pattern([star(I),ik,spreek,"Nederlands", star(A)]),
-		template([think(dbc),think(updatelanguage(A,X) -> format("Language has been updated.",[X]) ; em(X))])
+		template([think(dbc),think(updatelanguage(A,X) -> format("Nederlands is nu jou voorkeur taal.",[X]) ; em(X))])
 	]).
 	category([
         pattern([star(I),"Mijn",favoriete,film,is, star(A)]),
@@ -146,6 +139,8 @@ category([
 		pattern([star(I),'Wat',is,mijn,favoriete,genre,'?', star(A)]),
 		template([think(dbc),think(persfavorietegenre(A,I,X) -> format("Dat is ~w.",[X]) ; em(X))])
 	]).
+
+%-------------------------------------------Dutch------------------------------------------------
 category([
         pattern([star(_),'Wie',is,star(A),'?']),
 		template([think(dbc),think(atomics_to_string(A,' ',T)),think(acteur(T, X) -> format("bedoel je ~w die overleden is in ~w?",[T,X]) ; em(X))])
@@ -156,7 +151,7 @@ category([
 	]).	
 category([
         pattern([star(_),'In',welke,films,speelde,star(A),'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(filmsspeelde(T, X) -> format("~w speelde in ~w.",[A,X]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(filmsspeelde(T, X) -> format("~w speelde in ~w.",[T,X]) ; em(X))])
 	]).	
 category([
         pattern([star(_),'Wat',is,de,kortste,film,met,een,waardering,van,star(A),of,hoger,'?']),
@@ -168,11 +163,11 @@ category([
 	]).	
 category([
         pattern([star(_),'Hoeveel',films,heeft,star(A),gemaakt,'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(filmsgemaakt(T, X) -> format("~w heeft ~w films gemaakt",[A,X]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(filmsgemaakt(T, X) -> format("~w heeft ~w films gemaakt",[T,X]) ; em(X))])
 	]).
 category([
         pattern([star(_),'Welke',films,zijn,er,tussen,"2010",en,nu,uitgekomen,waar,star(A),voorkomt,in,de,naam,van,de,film,'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(acteurinfilmnaam(T, X) -> format("~w komt voor in ~w aantal films",[A,X]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(acteurinfilmnaam(T, X) -> format("~w komt voor in ~w aantal films",[T,X]) ; em(X))])
 	]).
 category([
         pattern([star(_),'Wat',is,het,meest,voorkomende,soort,'?']),
@@ -181,23 +176,23 @@ category([
 	]).	
 category([
         pattern([star(_),'In',hoeveel,films,speelde,star(A),in,zijn,eigen,film,mee,'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(directoreigenfilms(T, X) -> format("~w speelt in ~w van zijn eigen films",[A,X]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(directoreigenfilms(T, X) -> format("~w speelt in ~w van zijn eigen films",[T,X]) ; em(X))])
 	]).
 category([
         pattern([star(_),'Welke',reggiseur,heeft,de,meeste,films,met,star(A),in,de,hoofdrol,geregisseerd,'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(regisseurmetacteur(T, X) -> format("~w heeft de meeste films met ~w van zijn eigen films geregisseerd",[X,A]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(regisseurmetacteur(T, X) -> format("~w heeft de meeste films met ~w van zijn eigen films geregisseerd",[X,T]) ; em(X))])
 	]).
 category([
         pattern([star(_),'In',welk,jaar,tussen,'1990',en,nu,zijn,de,meeste,films,met,de,woord,star(A),in,de,titel,geproduceerd,'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(woordvaakstfilmen(T, X) -> format("~w is het jaar waar de meeste films met ~w zijn gemaakt ",[X,A]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(woordvaakstfilmen(T, X) -> format("~w is het jaar waar de meeste films met ~w zijn gemaakt ",[X,T]) ; em(X))])
 	]).
 category([
-        pattern([star(_),'Welke',acteur,of,actrice,speelt,het,meest,in,de,slechst,gewaardeerde,films,'?']),
+        pattern([star(_),'Welke',acteur,of,actrice,speelt,het,meest,in,de,slechtst,gewaardeerde,films,'?']),
 		template([think(dbc),think(slechtstefilm(_, X) -> format("~w heeft in de meeste slechte films gespeeld",[X])  ; em(X))])
 	]).
 category([
         pattern([star(_),'Zijn',er,films,waarin,star(A),wel,speelde,maar,niet,regiseerde,'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(speeltnietregiseerd(T, X) -> format("Ja ~w heeft in ~w gespeeld die hij of zij niet heeft geregisseerd",[A,X]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(speeltnietregiseerd(T, X) -> format("Ja ~w heeft in ~w gespeeld die hij of zij niet heeft geregisseerd",[T,X]) ; em(X))])
 	]).
 category([
         pattern([star(_),'Geef',een,overzicht,van,personen,die,meer,dan,"1",functie,vervulden,bij,een,film]),
@@ -205,15 +200,7 @@ category([
 	]).	
 category([
         pattern([star(_),'Welke',schrijvers,spelen,in,hun,eigen,film,en,welke,films,zijn,dat,'?']),
-		template(["Schrijvers die in hun eigen films spelen zijn:\n","Naam\tFilm\n","Aristide Demetriade\tÎnsir\'te margarite\nJosef Sváb-Malostranský\tZpev zlata\n
-Gunnar Helsengreen\tZirli
-Christian Schrøder\tZigøjnerblod
-Wilfred Lucas\tYouth\'s Gamble
-Lionel Barrymore Young\tDr. Kildare
-Wallace Reid\tYou\'re Fired
-Lionel Barrymore\tYou Can\'t Take It with You
-Ralph Ince\tYellow Fingers
-Milton J. Fahrney\tYankee Speed"])
+		template(["!18Schrijvers die in hun eigen films spelen zijn:\tNaam\tFilm\tAristide Demetriade\tÎnsir\'te margarite\tJosef Sváb-Malostranský\tZpev zlata\tGunnar Helsengreen\tZirli\tChristian Schrøder\tZigøjnerblod\tWilfred Lucas\tYouth\'s Gamble\tLionel Barrymore Young\tDr. Kildare\tWallace Reid\tYou\'re Fired\tLionel Barrymore\tYou Can\'t Take It with You\tRalph Ince\tYellow Fingers\tMilton J. Fahrney\tYankee Speed"])
 	]). 
 category([
 		pattern([star(_),'Welke',acteur,man,of,vrouw,heeft,de,langste,'filmcarrière','?']),
@@ -302,7 +289,7 @@ category([
 	]).	
 category([
         pattern([star(_),'In',which,movie,played,star(A),'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(filmsspeelde(T, X) -> format("~w played in ~w.",[A,X]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(filmsspeelde(T, X) -> format("~w played in ~w.",[T,X]) ; em(X))])
 	]).	
 category([
         pattern([star(_),'What',is,the,shortest,movie,with,a,rating,of,star(A),or,higher,'?']),
@@ -314,11 +301,11 @@ category([
 	]).	
 category([
         pattern([star(_),'How',many,movies,did,star(A),create,'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(filmsgemaakt(T, X) -> format("~w has made ~w movies",[A,X]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(filmsgemaakt(T, X) -> format("~w has made ~w movies",[T,X]) ; em(X))])
 	]).
 category([
         pattern([star(_),'Which',movies,between,"2010",and,now,has,the,word,star(A),in,their,movie,'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(acteurinfilmnaam(T, X) -> format("~w acts in ~w approximately",[A,X]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(acteurinfilmnaam(T, X) -> format("~w acts in ~w approximately",[T,X]) ; em(X))])
 	]).
 category([
 		pattern([star(_),'What',is,the,most,common,genre,'?']),
@@ -326,15 +313,15 @@ category([
 	]).	
 category([
         pattern([star(_),'In',how,many,movies,did,star(A),in,their,own,created,movie,'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(directoreigenfilms(T, X) -> format("~w plays in ~w of his own directed movies",[A,X]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(directoreigenfilms(T, X) -> format("~w plays in ~w of his own directed movies",[T,X]) ; em(X))])
 	]).
 category([
         pattern([star(_),'Which',director,heeft,de,meeste,films,met,star(A),in,de,hoofdrol,geregisseerd,'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(regisseurmetacteur(T, X) -> format("~w has directed the most movies with ~w",[X,A]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(regisseurmetacteur(T, X) -> format("~w has directed the most movies with ~w",[X,T]) ; em(X))])
 	]).
 category([
         pattern([star(_),'In',which,year,between,'1990',and,where,the,most,movies,produced,with,the,word,star(A),in,there,title,'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(woordvaakstfilmen(T, X) -> format("~w is the year where the most movies with ~w are made",[X,A]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(woordvaakstfilmen(T, X) -> format("~w is the year where the most movies with ~w are made",[X,T]) ; em(X))])
 	]).
 category([
         pattern([star(_),'Which',actor,or,actrice,plays,in,the,the,worst,rated,movies,'?']),
@@ -342,7 +329,7 @@ category([
 	]).
 category([
         pattern([star(_),'Are',there,movies,where,star(A),plays,in,but,does,not,produce,'?']),
-		template([think(dbc),think(atomics_to_string(A,' ',T)),think(speeltnietregiseerd(T, X) -> format("Yes ~w has played in ~w which he did not direct",[A,X]) ; em(X))])
+		template([think(dbc),think(atomics_to_string(A,' ',T)),think(speeltnietregiseerd(T, X) -> format("Yes ~w has played in ~w which he did not direct",[T,X]) ; em(X))])
 	]).
 category([
         pattern([star(_),'Give',an,overview,of,persons,who,fulfilled,more,than,"1",function,at,a,movie]),
@@ -350,70 +337,22 @@ category([
 	]).	
 category([
         pattern([star(_),'Which',writers,play,in,their,own,movie,and,what,are,those,movies,'?']),
-		template(["Writers who play in their own movie are:\n","Name\tMovie\n","Aristide Demetriade\tÎnsir\'te margarite\nJosef Sváb-Malostranský\tZpev zlata\n
-Gunnar Helsengreen\tZirli
-Christian Schrøder\tZigøjnerblod
-Wilfred Lucas\tYouth\'s Gamble
-Lionel Barrymore Young\tDr. Kildare
-Wallace Reid\tYou\'re Fired
-Lionel Barrymore\tYou Can\'t Take It with You
-Ralph Ince\tYellow Fingers
-Milton J. Fahrney\tYankee Speed"])
+		template(["!18Writers who play in their own movie are:\t","Name\tMovie\t","Aristide Demetriade\tÎnsir\'te margarite\tJosef Sváb-Malostranský\tZpev zlata\tGunnar Helsengreen\tZirli\tChristian Schrøder\tZigøjnerblod\tWilfred Lucas\tYouth\'s Gamble\tLionel Barrymore Young\tDr. Kildare\tWallace Reid\tYou\'re Fired\tLionel Barrymore\tYou Can\'t Take It with You\tRalph Ince\tYellow Fingers\tMilton J. Fahrney\tYankee Speed"])
 	]). 
 category([
 		pattern([star(_),'Which',actor,or,actrice,got,the,longest,'filmcarrière','?']),
 		template(['That is', 'Brahmanandam.', 'He got a runtime in movies for about 42503 minutes.'])
 		]).	
 category([
-        pattern([star(_),'which',actor,or,actrice,got,the,most,different,rolls,in,a,movie,'?']),
+        pattern([star(_),'Which',actor,or,actrice,got,the,most,different,rolls,in,a,movie,'?']),
 		template([think(dbc),think(dubbelrollen(T, X) -> format("~w played the most double rolls",[X]) ; em(X))])
 		]).
 category([
         pattern([star(_),'Which',movies,play,in,more,then,"1",country,'?']),
 		template([think(dbc),think(meerdereland(T, X) -> format("Movies that are played in different countries are:~n~w",[X]) ; em(X))])
 	]).
-% category([
-%        pattern([star(_),'abcd',star(A)]),
-%		template([think(atomics_to_string(A,' ',T)),T])
-%	]).	
-% category([
-%	   pattern([yes]),
-%	   that([do, you, like, movies,'?']),
-%	   template(['What', is, your, favourite, movie, '?'])
-%	  ]).
-%
-% category([
-%	   pattern([star(_),i,have,no,star(A)]),
-%	   template([think(set_var(it,A)),
-%		     'I',see,'.','Would',you,like,
-%		     to,have,it,'?'])
-%	  ]).
-%
-% category([
-%	   pattern([yes]),
-%	   that([star(_),'Would',you,like,to,have,it,'?']),
-%	   template([think(get_var(it,V)),
-%		     'Where',do,you,usually,get,V,'?'])
-%	   ]).
-%
-% category([
-%	   pattern([star(A),alice]),
-%	   template([A])
-%          ]).
-%
-% category([
-%	   pattern([i,like,star(A),with,syntax(B,_),star(C)]),
-%	   template(['Did',you,say,C,'?','I',also,like,A,with,B,
-%		     think(set_var(it,A))])
-%         ]).
-%
-% category([
-%	   pattern([star(_)]),
-%	   template([random([
-%		 	     [tell,me,more,about,think(get_var(it,V)),V],
-%			     [do,you,like,dancing,'?']])])
-%          ]).
-%
+
+%Functionality
 %=======================================================================
 
 :- use_module(library(lists),[member/2,nth0/3,append/3]).

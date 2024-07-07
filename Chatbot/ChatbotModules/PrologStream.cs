@@ -6,15 +6,6 @@ using System.Text;
 
 namespace Chatbot.ChatbotModules
 {
-    //public interface IPrologStream
-    //{
-    //    public void WriteToDiscord(string prologMessage);
-    //    public void WriteToProlog(string chatbotMessage);
-    //    public string ReadToDiscord();
-    //    public string ReadToProlog();
-    //    public void Clear();
-
-    //}
     class PrologStream: IPrologStream
     {
         static BlockingCollection<string> messagesFromDiscordBot = new BlockingCollection<string>();
@@ -35,10 +26,6 @@ namespace Chatbot.ChatbotModules
         public void WriteToProlog(string chatbotMessage)
         {
             messagesFromDiscordBot.Add(chatbotMessage);
-        }
-        public void Clear()
-        {
-            //messages.Clear();
         }
     }
 }

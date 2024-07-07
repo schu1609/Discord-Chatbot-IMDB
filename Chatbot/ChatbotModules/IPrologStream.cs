@@ -10,7 +10,5 @@ namespace Chatbot.ChatbotModules
         public void WriteToProlog(string chatbotMessage);
         public string ReadToDiscord();
         public string ReadToProlog();
-        public void Clear();
-
     }
 }

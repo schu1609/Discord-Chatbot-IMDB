@@ -19,46 +19,40 @@ using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using SbsSW.SwiPlCs;
+using SbsSW.SwiPlCs.Streams;
 
 namespace Chatbot
 {
     class Program
     {
-        private const string BotToken = "lol"; // dit moet later in een json bestand
-        string yourString = JsonDocument.Parse(File.ReadAllText("discord_key.json")).RootElement.GetProperty("your_key").GetString();
+        private static string BotToken = JsonDocument.Parse(File.ReadAllText("discord_key.json")).RootElement.GetProperty("your_key").GetString(); 
         static PrologStream prolog = new PrologStream();
+
         static void Main(string[] args)
         {
             string currentDir = System.IO.Directory.GetCurrentDirectory();
             Thread producingThread = new Thread(bothandler);
             producingThread.Start();
-            //string path = "C:\\Users\\Leon\\Desktop\\test.pl";
-            string pathAlice = "Alice.pl";
-            //string pathChatbot = "C:\\Users\\Leon\\Dropbox\\NHL\\Jaar 3\\Minorleon\\testread.pl";
-            
+            string pathAlice = "Alice.pl";            
 
             if (!PlEngine.IsInitialized)
             {
                 Environment.SetEnvironmentVariable("SWI_HOME_DIR", @"C:\Program Files\swipl\boot64.prc");
                 String[] param = { "-q", pathAlice };
                 PlEngine.Initialize(param);
-                PlEngine.SetStreamFunctionRead(SbsSW.SwiPlCs.Streams.PlStreamType.Input, Sread);
-                PlEngine.SetStreamFunctionWrite(SbsSW.SwiPlCs.Streams.PlStreamType.Input, Swrite);
+                DelegateStreamReadFunction SreadDelegate = Sread;
+                DelegateStreamWriteFunction SwriteDelegate = Swrite;
+                PlEngine.SetStreamFunctionRead(SbsSW.SwiPlCs.Streams.PlStreamType.Input, SreadDelegate);
+                PlEngine.SetStreamFunctionWrite(SbsSW.SwiPlCs.Streams.PlStreamType.Input, SwriteDelegate);
 
-                //PlQuery.PlCall("dbc");
                 while (true)
                 {
-                    Debug.WriteLine("this is a loop");
-                    //PlEngine.Initialize(param);
                     PlQuery.PlCall("loop");
-                    //if (Console.KeyAvailable)
-                    //    break;
                 }               
                 PlEngine.PlCleanup(); //ending
             }
-        }//=> new Program().RunBotAsync().GetAwaiter().GetResult();
+        }
 
-        static bool CALLBACK_CALLED = false;
         static private long Sread(IntPtr handle, System.IntPtr buffer, long buffersize)
         {
             string prologtemp = prolog.ReadToProlog();
@@ -75,7 +69,6 @@ namespace Chatbot
         static private long Swrite(IntPtr handle, String buffer, long buffersize)
         {
             string s = buffer.Substring(0, (int)buffersize);
-            //System.Diagnostics.Trace
             Debug.WriteLine(s);
             prolog.WriteToDiscord(s);
             return buffersize;
@@ -133,7 +126,6 @@ namespace Chatbot
         {
             Debug.WriteLine(arg.Content + " Length: " + arg.Content.Length);
             var message = arg as SocketUserMessage;
-            //Console.WriteLine(message.Content);
             var context = new SocketCommandContext(_client, message);
             if (message.Author.IsBot)
                 return;
@@ -142,11 +134,6 @@ namespace Chatbot
 
             if (message.HasStringPrefix("!", ref argPos))
             {
-                //const string pm_prefix = "!pm ";
-                //if (message.Content.ToLower().StartsWith(pm_prefix))
-                //{
-                //    PrologHandler(message.Content.Substring(pm_prefix.Length, message.Content.Length - pm_prefix.Length));
-                //}
                 var result = await _commands.ExecuteAsync(context, argPos, _services);
                 if (!result.IsSuccess) 
                     Console.WriteLine(result.ErrorReason + ". Message used was: " + message.Content);

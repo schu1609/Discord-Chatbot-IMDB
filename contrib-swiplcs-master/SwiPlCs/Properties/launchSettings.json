@@ -1,11 +1,8 @@
 {
   "profiles": {
-    "Chatbot": {
+    "SwiPLcs": {
       "commandName": "Project",
       "nativeDebugging": true
-    },
-    "Docker": {
-      "commandName": "Docker"
     }
   }
 }
